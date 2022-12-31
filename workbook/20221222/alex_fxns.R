@@ -1,6 +1,4 @@
-## stolen from https://github.com/albobson/SpotRfy/blob/master/scripts/spotRfy_master.R
-
-## 22-12-22 ##
+## 22-12-23 ##
 
 ## Script to parse through downloaded Spotify code ##
 
@@ -14,7 +12,7 @@ library(plotly)
 
 #### Scripts to work with locally downloaded data ####
 
-## Import the spotify streaming data
+## Import the Spotify "short-term" data
 ## The filepath needs to be the path to the file where the downloaded 
 ## data is stored
 import_spotify_streaming_data <- function(datafile) {
@@ -36,23 +34,94 @@ import_spotify_streaming_data <- function(datafile) {
   return(data)
 }
 
+## Import the Spotify "long-term" data
+## Note: The short term and long term datasets are coded slightly differently
+## making it necessary for two different functions.
+
+## Additionally, the long term data makes it much easier to delineate between
+## podcasts and normal songs by the way the variables are coded.
+
+## Import the data
+import_lifetime_streaming_data <- function(datafile) {
+  
+  stream_files  <- list.files(path=as.character(datafile),
+                              recursive=T,
+                              pattern='endsong_*',
+                              full.names=T)
+  
+  ## Create a null dataset to store the streaming data
+  data <- NULL
+  
+  ## For loop to extract from however many files you have
+  for(i in 1:length(stream_files)) {
+    new_data <- jsonlite::fromJSON(stream_files[i])
+    data <- rbind(data, new_data)
+    data
+  }
+  return(data)
+}
+
+## Isolate just tracks
+get_lifetime_tracks <- function(lifetime_data) {
+  new_df <- NULL
+  new_df <- lifetime_data %>%
+    mutate(datetime= ts, 
+           msPlayed = ms_played, 
+           trackName = master_metadata_track_name, 
+           albumName = master_metadata_album_album_name,
+           artistName = master_metadata_album_artist_name,
+           ipAddress = ip_addr_decrypted) %>%
+    select(datetime,
+           msPlayed,
+           ipAddress,
+           trackName,
+           albumName,
+           artistName,
+           reason_start,
+           reason_end,
+           shuffle,
+           skipped,
+           offline,
+           offline_timestamp,
+           incognito_mode, 
+           spotify_track_uri) %>%
+    filter_at(vars(trackName, artistName), all_vars(!is.na(.)))
+  return(new_df)
+}
+
+## Isolate just podcasts
+get_lifetime_podcasts <- function(lifetime_data) {
+  new_df <- NULL
+  new_df <- lifetime_data %>%
+    mutate(datetime= ts, 
+           msPlayed = ms_played, 
+           episodeName = episode_name, 
+           showName = episode_show_name) %>%
+    select(datetime,
+           msPlayed,
+           episodeName,
+           showName,
+           reason_start,
+           reason_end,
+           shuffle,
+           skipped,
+           offline,
+           offline_timestamp,
+           incognito_mode) %>%
+    filter_at(vars(episodeName, showName), all_vars(!is.na(.)))
+  return(new_df)
+}
+
+
+
 ## Clean Spotify streaming data
 ## This will add the various minutes/seconds columns and date column
 ## Need to specify desired timezone (eg. "PST")
 
-clean_spotify_streaming_data <- function(data, your_timezone, include_pod) {
+clean_spotify_streaming_data <- function(data, your_timezone) {
   ## Time is in ms, changing to minutes or seconds
   data$min_played <- data$msPlayed/60/1000
   data$sec_played <- data$msPlayed/1000
-  
-  ## Begin Ann's code
-  
-  ## crudely exclude podcasts by subsetting observations <13 min
-  if(include_pod == FALSE){
-    data <- filter(data, min_played < 13)
-  } 
-  
-  ## End Ann's code
   
   ## Spotify data is recorded in UTC, need to convert to a different time
   data$dif_endtime <- lubridate::ymd_hm(data$endTime, tz = "UTC")
@@ -77,7 +146,6 @@ clean_spotify_streaming_data <- function(data, your_timezone, include_pod) {
     dplyr::mutate(sum_min_per_song = sum(min_played), num_times_song_played = n()) %>%
     dplyr::arrange(desc(sum_min_per_artist)) %>%
     dplyr::ungroup()
-  
   
   return(data1)
 }

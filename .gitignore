@@ -1,3 +1,7 @@
 .httr-oauth
 
 workbook/authentication.R
+
+workbook/20221224/listening_map.html
+
+data/ignored_data/
