@@ -59,3 +59,8 @@ fig <- fig %>%
     coloraxis = list(colorscale = "Viridis"))
 
 fig  
+
+
+# future directions: hierarchical clustering using https://twitter.com/WireMonkey/status/1009915034246565891?s=19
+# downer index from: https://www.caitlinhudon.com/posts/2017/12/22/blue-christmas
+# cool plot and tool tip from: https://www.rcharlie.com/blog/fitter-happier/
